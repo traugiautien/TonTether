@@ -15,8 +15,9 @@ class TapTether {
         this.hideLogsfail = false; //true: ẩn fail - false: hiện fail
         this.linkData = 'data.txt';
         this.linkProxies = '../proxy/proxy.txt';
-        this.Threads = 30;
-        this.forwhile = 1200; //Giây
+        this.Threads = 60;
+        this.forwhile = 600; //Giây
+        this.timeAgain = 10; //Thời gian phản hồi Request, giây;
         this.activeThreads = 0;
         this.indexCounter = 0; 
         this.taskQueue = []; // Hàng đợi cho các nhiệm vụ
@@ -50,10 +51,11 @@ class TapTether {
     }
 
     async checkProxyIP(proxyUrl){
+        const url = 'https://api.ipify.org?format=json';
+        const timeAgain = this.timeAgain * 1000;
+        const proxyAgent = new HttpsProxyAgent(proxyUrl);
         try{
-            const proxyAgent = new HttpsProxyAgent(proxyUrl);
-            const response = await axios.get('https://api.ipify.org?format=json', {httpsAgent: proxyAgent});
-            //const response = await axios.get('https://ipinfo.io/json', { httpsAgent: proxyAgent});
+            const response = await axios.get(url, {httpsAgent: proxyAgent, timeout: timeAgain});
             if (response.status === 200) {
                 return response.data.ip;
             }else{
@@ -99,9 +101,10 @@ class TapTether {
     async inforUser(data, proxyUrl) {
         const url = 'https://tontether.click/user/me';
         const headers = this.headers;
+        const timeAgain = this.timeAgain * 1000;
         this.headers['Authorization'] = 'Bearer ' + data;
         try {
-            const res = await axios.get(url, {headers, httpsAgent: new HttpsProxyAgent(proxyUrl)})
+            const res = await axios.get(url, {headers, httpsAgent: new HttpsProxyAgent(proxyUrl), timeout: timeAgain})
             const data = res.data;
             return data;
         } catch (error) {
@@ -112,11 +115,12 @@ class TapTether {
     async claimCoin(coin, data, proxyUrl) {
         const url = 'https://tontether.click/user/click';
         const headers = this.headers;
+        const timeAgain = this.timeAgain * 1000;
         this.headers['Authorization'] = 'Bearer ' + data;
         const timeNow = new Date().getTime();
         const datas = {click_count: coin, at: timeNow}
         try {
-            const res = await axios.post(url, datas, {headers, httpsAgent: new HttpsProxyAgent(proxyUrl)})
+            const res = await axios.post(url, datas, {headers, httpsAgent: new HttpsProxyAgent(proxyUrl), timeout: timeAgain})
             const data = res.data;
             return data;
         } catch (error) {
@@ -168,7 +172,7 @@ class TapTether {
         } 
         if (result.inforUser == false) {
             this.nFail++;
-            return this.hideLogsfail == true ? false : logs += `\n\t=> [${colors.red(result.id)}]\n\t${colors.yellow(`=> Không tìm thấy dữ liệu`)}`;
+            return this.hideLogsfail == true ? false : logs += `\n\t${colors.yellow(`=> Không tìm thấy dữ liệu`)}`;
         }
         logs += ` - USDT: ${colors.green(result.inforUser.Balance)}`;
         logs += result.inforUser.Status == 'Thành công' ? `\n\t=> Claim: ${colors.green(result.inforUser.Status)}`: `\n\t=> Claim: ${colors.yellow(result.inforUser.Status)}`;
